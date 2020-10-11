@@ -2,22 +2,12 @@
   (:gen-class))
 
 (require '[nrepl.server :refer [start-server stop-server]])
-(defonce server (start-server :port 4001))
+(defonce server (start-server :bind "192.168.178.62" :port 4001))
 
 (load "objects")
 (load "descriptions")
 (load "rooms")
 (load "navigation")
-
-(def delim "========================================================================================")
-
-(def greeting
-  "\"Welcome, Cloj-Mud, to this humble abode! We are glad to receive you here as our guest!\"
-The wise, bearded old man greets you. You wonder how he knows your name. He speaks 
-again: 
-\"You wonder how I know your name? I know many things. You see, I am a wise, bearded 
-old man. Not exactly a wizard, and my name is not Gandalf, but let's say I have a direct 
-connection to the maker of this world - unlike other people you might meet here.\"")
 
 (def start (:hall cloj-mud.rooms/main-map))
 
@@ -45,6 +35,15 @@ connection to the maker of this world - unlike other people you might meet here.
   [loc obj invent]
   (conj invent (get (:obj (:here (cloj-mud.navigate/here loc))) obj)))
 
+(defn go
+  [loc dir]
+  (cond (= dir 'north) (cloj-mud.navigate/north loc)
+        (= dir 'south) (cloj-mud.navigate/south loc)
+        (= dir 'west) (cloj-mud.navigate/west loc)
+        (= dir 'east) (cloj-mud.navigate/east loc)
+        :else (cloj-mud.navigate/here loc)))
+        
+
 (defn run
   "Move from one room to the other."
   []
@@ -55,6 +54,11 @@ connection to the maker of this world - unlike other people you might meet here.
                               (recur (cloj-mud.navigate/here loc)
                                      invent
                                      (read)))
+          (= input 'go) (do (let [dir (read)]
+                              (look (go loc dir))
+                              (recur (go loc dir)
+                                     invent
+                                     (read))))
           (= input 'east) (do (look (cloj-mud.navigate/east loc))
                               (recur (cloj-mud.navigate/east loc)
                                      invent
@@ -86,7 +90,10 @@ connection to the maker of this world - unlike other people you might meet here.
                                        invent
                                        (read))))
           (= input 'exit) (println "Goodbye!")
-          :else (println "You cannot do this!")
+          :else (do (println "You cannot do this!")
+                    (recur (cloj-mud.navigate/here loc)
+                           invent
+                           (read)))
           )))
 
 (defn -main
