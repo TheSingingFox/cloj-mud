@@ -59,22 +59,6 @@
                               (recur (go loc dir)
                                      invent
                                      (read))))
-          (= input 'east) (do (look (cloj-mud.navigate/east loc))
-                              (recur (cloj-mud.navigate/east loc)
-                                     invent
-                                     (read)))
-          (= input 'west) (do (look (cloj-mud.navigate/west loc))
-                              (recur (cloj-mud.navigate/west loc)
-                                     invent
-                                     (read)))
-          (= input 'north) (do (look (cloj-mud.navigate/north loc))
-                               (recur (cloj-mud.navigate/north loc)
-                                      invent
-                                      (read)))
-          (= input 'south) (do (look (cloj-mud.navigate/south loc))
-                               (recur (cloj-mud.navigate/south loc)
-                                      invent
-                                      (read)))
           (= input 'take) (do (let [obj (read)]
                                 (println (str "You take up the " (:name (take-obj loc obj))))
                                 (recur (cloj-mud.navigate/here loc)
