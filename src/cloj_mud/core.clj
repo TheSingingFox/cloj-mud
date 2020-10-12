@@ -2,7 +2,7 @@
   (:gen-class))
 
 (require '[nrepl.server :refer [start-server stop-server]])
-(defonce server (start-server :bind "192.168.178.62" :port 4001))
+(defonce server (start-server :port 4001))
 
 (load "objects")
 (load "descriptions")
@@ -42,7 +42,7 @@
         (= dir 'west) (cloj-mud.navigate/west loc)
         (= dir 'east) (cloj-mud.navigate/east loc)
         :else (cloj-mud.navigate/here loc)))
-        
+
 
 (defn run
   "Move from one room to the other."
@@ -86,4 +86,3 @@
   (start-server)
   (look start)
   (run))
-
