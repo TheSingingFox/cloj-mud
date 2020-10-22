@@ -27,6 +27,16 @@
                   "nothing."
                   (str "a " (clojure.string/join ", a " (map :name invent)))))))
 
+(defn save-state
+  [map]
+  (spit "./save" map))
+
+(defn get-state
+  []
+  (with-open [r (java.io.PushbackReader.
+                 (clojure.java.io/reader "./save"))]
+    (read r)))
+
 (defn take-obj
   [loc obj]
   (obj (:obj (:here (cloj-mud.navigate/here loc)))))
@@ -36,6 +46,7 @@
   (conj invent (get (:obj (:here (cloj-mud.navigate/here loc))) obj)))
 
 (defn go
+  "Move from one room to the other."
   [loc dir]
   (cond (= dir 'north) (cloj-mud.navigate/north loc)
         (= dir 'south) (cloj-mud.navigate/south loc)
@@ -45,7 +56,7 @@
 
 
 (defn run
-  "Move from one room to the other."
+  "The game loop."
   []
   (loop [loc (:hall cloj-mud.rooms/main-map)
          invent inventory
@@ -73,6 +84,19 @@
                                 (recur (cloj-mud.navigate/here loc)
                                        invent
                                        (read))))
+          (= input 'save) (do (save-state {:loc loc
+                                           :i invent})
+                              (println "Game saved.")
+                              (recur (cloj-mud.navigate/here loc)
+                                     invent
+                                     (read)))
+          (= input 'load) (do (recur (cloj-mud.navigate/here (:loc (get-state)))
+                                     (:i (get-state))
+                                     (read)))
+          (= input 'repl) (do (start-server)
+                              (recur (cloj-mud.navigate/here loc)
+                                     invent
+                                     (read)))
           (= input 'exit) (println "Goodbye!")
           :else (do (println "You cannot do this!")
                     (recur (cloj-mud.navigate/here loc)
@@ -83,6 +107,5 @@
 (defn -main
   "Starts the game."
   [& args]
-  (start-server)
   (look start)
   (run))

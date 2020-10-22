@@ -4,11 +4,10 @@
 (ns cloj-mud.navigate
   (:gen-class))
 
-(defn go
+(defmacro go
   [loc
    input]
-  ((:name (input loc)) cloj-mud.rooms/main-map))
-
+  `((:name (~input ~loc)) cloj-mud.rooms/main-map))
 
 (defn west
   "Move one room to the west."
