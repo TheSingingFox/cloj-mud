@@ -1,0 +1,1 @@
+{:name "Test", :location [1 0], :objects #{}, :exits [":south"], :description "It is very fanciful."}

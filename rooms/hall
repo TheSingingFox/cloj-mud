@@ -1,0 +1,1 @@
+{:name "hall", :location [0 0], :objects #{'Map, 'Guestbook}, :exits #{:west :east}, :description "The entry hall"}

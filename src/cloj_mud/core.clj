@@ -4,108 +4,165 @@
 (require '[nrepl.server :refer [start-server stop-server]])
 (defonce server (start-server :port 4001))
 
-(load "objects")
-(load "descriptions")
-(load "rooms")
-(load "navigation")
+(defn make-player
+  [name]
+  (let [player {:name name
+                :inventory #{}
+                :location [0 0]}]
+    (spit (str "./save/" name) (str "(atom " player ")"))))
 
-(def start (:hall cloj-mud.rooms/main-map))
+(defn save-player
+  [player]
+  (spit (str "./save/" (:name @player)) (str "(atom " @player ")")))
 
-(def inventory #{})
+(defn make-room
+  [name location objects exits description]
+  (let [room {:name name
+              :location location
+              :objects objects
+              :exits exits
+              :description description}]
+    (spit (str "./rooms/" name) room)))
 
-(defn look [loc]
-  (println (:descr (:here (cloj-mud.navigate/here loc))))
-  (println (str "You see "
-                (if (= (:obj (:here (cloj-mud.navigate/here loc))) #{})
-                  "nothing."
-                  (str "a " (clojure.string/join ", a " (:names (:obj (:here (cloj-mud.navigate/here loc))))))))))
-
-(defn take-invent
-  [invent]
-  (println (str "You carry "
-                (if (= invent #{})
-                  "nothing."
-                  (str "a " (clojure.string/join ", a " (map :name invent)))))))
-
-(defn save-state
-  [map]
-  (spit "./save" map))
+(defn make-object
+  [name description]
+  (let [obj {:name name
+             :description description}]
+    (spit (str "./objects/" name) obj)))
 
 (defn get-state
-  []
-  (with-open [r (java.io.PushbackReader.
-                 (clojure.java.io/reader "./save"))]
-    (read r)))
+  [save]
+  (eval (read-string (slurp save))))
 
-(defn take-obj
-  [loc obj]
-  (obj (:obj (:here (cloj-mud.navigate/here loc)))))
-
-(defn add-to-inventory
-  [loc obj invent]
-  (conj invent (get (:obj (:here (cloj-mud.navigate/here loc))) obj)))
+(defmacro change-loc
+  [pl new-loc]
+  `(swap! ~pl assoc :location ~new-loc))
 
 (defn go
-  "Move from one room to the other."
-  [loc dir]
-  (cond (= dir 'north) (cloj-mud.navigate/north loc)
-        (= dir 'south) (cloj-mud.navigate/south loc)
-        (= dir 'west) (cloj-mud.navigate/west loc)
-        (= dir 'east) (cloj-mud.navigate/east loc)
-        :else (cloj-mud.navigate/here loc)))
+  [direction player]
+  (let [loc (:location @player)]
+    (cond (= direction 'west) (change-loc player (vector (loc 0) (inc (loc 1))))
+          (= direction 'east) (change-loc player (vector (loc 0) (dec (loc 1))))
+          (= direction 'north) (change-loc player (vector (inc (loc 0)) (loc 1)))
+          (= direction 'south) (change-loc player (vector (dec (loc 0)) (loc 1))))))
 
+(defn get-several
+  [dir]
+  (map get-state (rest (file-seq (clojure.java.io/file dir)))))
 
-(defn run
-  "The game loop."
+(defn get-players
   []
-  (loop [loc (:hall cloj-mud.rooms/main-map)
-         invent inventory
-         input (read)]
-    (cond (= input 'look) (do (look loc)
-                              (recur (cloj-mud.navigate/here loc)
-                                     invent
-                                     (read)))
-          (= input 'go) (do (let [dir (read)]
-                              (look (go loc dir))
-                              (recur (go loc dir)
-                                     invent
-                                     (read))))
-          (= input 'take) (do (let [obj (read)]
-                                (println (str "You take up the " (:name (take-obj loc obj))))
-                                (recur (cloj-mud.navigate/here loc)
-                                       (add-to-inventory loc obj invent)
-                                       (read))))
-          (= input 'i) (do (take-invent invent)
-                           (recur (cloj-mud.navigate/here loc)
-                                  invent
-                                  (read)))
-          (= input 'read) (do (let [obj (read)]
-                                (println (:descr (take-obj loc obj)))
-                                (recur (cloj-mud.navigate/here loc)
-                                       invent
-                                       (read))))
-          (= input 'save) (do (save-state {:loc loc
-                                           :i invent})
-                              (println "Game saved.")
-                              (recur (cloj-mud.navigate/here loc)
-                                     invent
-                                     (read)))
-          (= input 'load) (do (recur (cloj-mud.navigate/here (:loc (get-state)))
-                                     (:i (get-state))
-                                     (read)))
-          (= input 'repl) (do (start-server)
-                              (recur (cloj-mud.navigate/here loc)
-                                     invent
-                                     (read)))
-          (= input 'exit) (println "Goodbye!")
-          :else (do (println "You cannot do this!")
-                    (recur (cloj-mud.navigate/here loc)
-                           invent
-                           (read)))
-          )))
+  (get-several "./save/"))
+
+(defmacro get-one
+  [source condition]
+  `(loop [sq# ~source]
+     (if (~condition sq#)
+       (first sq#)
+       (recur (rest sq#)))))
+
+(defn get-player
+  [name]
+    (get-one (get-players) (fn [players] (= name (:name @(first players))))))
+
+(defn objects
+  []
+  (get-several "./objects/"))
+
+(defn get-obj-by-name [name]
+     (get-one (objects) (fn [objs] (= name (:name (first objs))))))
+
+(defn print-obj-descr
+  [name]
+  (println (:description (get-obj-by-name name))))
+
+(defn print-objs-names
+  [room]
+  (doseq [x (map get-obj-by-name (map str (:objects room)))] (print (str ", " (:name x)))))
+
+(defn rooms
+  []
+  (get-several "./rooms/"))
+
+(defn rooms-map [] (atom (rooms)))
+
+(defn get-loc-by-name [name]
+    (get-one @(rooms-map) (fn [rooms] (= name (:name (first rooms))))))
+
+(defn get-player-loc [player]
+    (get-one @(rooms-map) (fn [rooms] (= (:location @player) (:location (first rooms))))))
+
+(defn current-player
+  [pl]
+  (def player (get-player pl)))
+
+(defn new-or-load
+  []
+  (println "Create a new character? (y/n)")
+  (let [input (read-line)]
+    (if (= input "y")
+      (do (println "Give your new character a name: ")
+          (let [name (read-line)]
+            (make-player name)
+            (current-player name)))
+      (do (println "Load which character?")
+          (current-player (read-line))))))
+
+(defn make-room-in-game
+  [player]
+  (println "Where shall your new room be?")
+  (let [location (let [direction (read-line)
+                       loc (:location @player)]
+                   (cond (= direction "west") (vector (loc 0) (inc (loc 1)))
+                         (= direction "east") (vector (loc 0) (dec (loc 1)))
+                         (= direction "north") (vector (inc (loc 0)) (loc 1))
+                         (= direction "south") (vector (dec (loc 0)) (loc 1))))]
+    (println "What shall your new room be called?")
+    (let [name (read-line)]
+      (println "Which exits does the new room have?")
+      (let [exits (vector (read-line))]
+        (println "Describe the new room.")
+        (let [description (read-line)]
+          (make-room name location #{} exits description))))))
+
+(defn print-loc
+  [player]
+  (let [loc (get-player-loc player)]
+  (println (:description loc))
+  (print "Here are: ")
+  (print-objs-names loc)
+  (println)))
+
+(defn to-invent
+  [name player]
+  (let [new-int (conj (:inventory @player)
+                      (get-obj-by-name (str name)))]
+  (swap! player assoc :inventory new-int)))
+
+(defn print-invent
+  [player]
+  (doseq [x (map :name (:inventory @player))] (print (str ", " x)))
+  (println))
+
+(defmacro deed
+  [action]
+  `(do ~action
+       (recur (read))))
 
 (defn -main
   "Starts the game."
   [& args]
-  (look start)
-  (run))
+  (new-or-load)
+  (println (str "Welcome " (:name @player) "!"))
+  (print-loc player)
+  (loop [input (read)]
+    (cond (= input 'go) (deed (do (go (read) player)
+                                  (print-loc player)))
+          (= input 'look) (deed (print-loc player))
+          (= input 'take) (deed (to-invent (read) player))
+          (= input 'i) (deed (print-invent player))
+          (= input 'save) (deed (save-player player))
+          (= input 'read) (deed (print-obj-descr (str (read))))
+          (= input 'repl) (deed (start-server :port 4001))
+          (= input 'make-room) (deed (make-room-in-game player))
+          (= input 'exit) (println "Goodbye!"))))

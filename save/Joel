@@ -1,0 +1,1 @@
+(atom {:name "Joel", :inventory #{}, :location [0 0]})

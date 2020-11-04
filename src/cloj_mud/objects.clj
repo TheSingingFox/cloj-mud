@@ -17,14 +17,42 @@
 (def bucket {:name 'bucket
              :descr "A bucket."})
 
+(def rooms-map {:name 'rooms-map
+          :descr "
+                   +---------------------+
+                   |                     |
+                   |                     |
+                   |       Bedroom       |
+                   |                     |
+                   |                     |
+                   |                     |
+               /---+---------¦ ¦---------+---\\
+              /                               \\
+             /                                 \\
+  +---------+                                   +---------+
+  |         |                                   |         |
+  |         |                                   |         |
+  |         +                                   + Living  |
+  | Cupboard           Entrance Hall                      |
+  |         +                                   +  Room   |
+  |         |                                   |         |
+  |         |                                   |         |
+  +---------+                                   +---------+
+            \\                                   /
+             \\                                 /
+              \\-------------------------------/
+"})
+
 (def objects
   {:guestbook guestbook
    :broom broom
    :sign sign
-   :bucket bucket})
+   :bucket bucket
+   :map rooms-map})
 
-(def hall-objects {:names #{'guestbook}
-                   'guestbook (:guestbook objects)})
+(def hall-objects {:names #{'guestbook 'map}
+                   'guestbook (:guestbook objects)
+                   'map (:map objects)})
 
 (def room1-objects {:names #{'broom 'bucket}
                     'broom (:broom objects)

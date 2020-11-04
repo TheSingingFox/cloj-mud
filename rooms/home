@@ -1,0 +1,1 @@
+{:name "home", :location [0 2], :objects #{}, :exits ["east"], :description ""}
